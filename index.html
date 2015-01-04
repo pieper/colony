@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+  <title>Chronicle Colony</title>
+
+  <link href="./css/colony.css" rel="stylesheet" type="text/css" />
+
+  <script type="text/javascript" src="js/three.js"></script>
+  <script type="text/javascript" src="js/stats.js"></script>
+  <script type="text/javascript" src="js/tween.js"></script>
+  <script type="text/javascript" src="js/physi.js"></script>
+
+  <script type="text/javascript" src="js/jquery-1.10.2.js"></script>
+  <script type="text/javascript" src="js/jquery.couch.js"></script>
+
+  <script type="text/javascript">
+
+  'use strict';
+
+  Physijs.scripts.worker = 'js/physijs_worker.js';
+  Physijs.scripts.ammo = 'ammo.js';
+
+  var initScene, render, createShape,
+    renderer, render_stats, physics_stats, scene, light, ground, ground_material, camera;
+
+  initScene = function() {
+    TWEEN.start();
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize( 0.9 * window.innerWidth, 0.7 * window.innerHeight );
+    renderer.shadowMapEnabled = true;
+    renderer.shadowMapSoft = true;
+    document.getElementById( 'viewport' ).appendChild( renderer.domElement );
+
+    render_stats = new Stats();
+    render_stats.domElement.style.position = 'absolute';
+    render_stats.domElement.style.top = '0px';
+    render_stats.domElement.style.left = '700px';
+    render_stats.domElement.style.zIndex = 100;
+    document.getElementById( 'viewport' ).appendChild( render_stats.domElement );
+
+    physics_stats = new Stats();
+    physics_stats.domElement.style.position = 'absolute';
+    physics_stats.domElement.style.top = '50px';
+    physics_stats.domElement.style.left = '700px';
+    physics_stats.domElement.style.zIndex = 100;
+    document.getElementById( 'viewport' ).appendChild( physics_stats.domElement );
+
+    scene = new Physijs.Scene({ fixedTimeStep: 1 / 120 });
+    scene.setGravity(new THREE.Vector3( 0, -9.8, 0 ));
+    scene.addEventListener(
+      'update',
+      function() {
+        scene.simulate( undefined, 2 );
+        physics_stats.update();
+      }
+    );
+
+    camera = new THREE.PerspectiveCamera(
+      35,
+      window.innerWidth / window.innerHeight,
+      1,
+      1000
+    );
+    camera.position.set( 60, 50, 60 );
+    camera.lookAt( scene.position );
+    scene.add( camera );
+
+    // Light
+    light = new THREE.DirectionalLight( 0xFFFFFF );
+    light.position.set( 20, 40, -15 );
+    light.target.position.copy( scene.position );
+    light.castShadow = true;
+    light.shadowCameraLeft = -60;
+    light.shadowCameraTop = -60;
+    light.shadowCameraRight = 60;
+    light.shadowCameraBottom = 60;
+    light.shadowCameraNear = 20;
+    light.shadowCameraFar = 200;
+    light.shadowBias = -.0001
+    light.shadowMapWidth = light.shadowMapHeight = 2048;
+    light.shadowDarkness = .7;
+    scene.add( light );
+
+    // Materials
+    var imageURL = 'http://common.bwh.harvard.edu:5984/chronicle/1.2.276.0.7230010.3.1.4.0.50979.1410120363.325199/image.jpg'
+    THREE.ImageUtils.crossOrigin = '';
+    ground_material = Physijs.createMaterial(
+      new THREE.MeshLambertMaterial({ map: THREE.ImageUtils.loadTexture( imageURL ) }),
+      .2, // high friction
+      .4 // low restitution
+    );
+    ground_material.map.wrapS = ground_material.map.wrapT = THREE.RepeatWrapping;
+
+    // Ground
+    ground = new Physijs.BoxMesh(
+      new THREE.BoxGeometry(50, 1, 50),
+      //new THREE.PlaneGeometry(50, 50),
+      ground_material,
+      0 // mass
+    );
+    ground.receiveShadow = true;
+    scene.add( ground );
+
+    requestAnimationFrame( render );
+    scene.simulate();
+
+    var value = "Slicer Series Render";
+    $.couch.urlPrefix = "http://common.bwh.harvard.edu:5984";
+    var pendingUpdateRequest = $.couch.db("chronicle").view("tags/byTagAndValue", {
+      startkey: ["0008103E", value],
+      endkey: ["0008103E", value+"\u9999"],
+      reduce : false,
+      stale : 'update_after',
+      success: function(data) {
+        $.each(data.rows, function(index,row) {
+          var id = row.id;
+          var imageURL = 'http://common.bwh.harvard.edu:5984/chronicle/' + id + '/image.jpg';
+          createShape(imageURL);
+        });
+      },
+    });
+
+  }
+
+
+  render = function() {
+    requestAnimationFrame( render );
+    renderer.render( scene, camera );
+    render_stats.update();
+  };
+
+  createShape = function(imageURL) {
+    var box_geometry = new THREE.BoxGeometry( 3, 3, 3 );
+
+    THREE.ImageUtils.crossOrigin = '';
+    var shape, 
+        material = new THREE.MeshLambertMaterial({ opacity: 0, transparent: true,
+                                                   map: THREE.ImageUtils.loadTexture( imageURL ),
+        });
+
+    shape = new Physijs.BoxMesh(
+      box_geometry,
+      material
+    );
+
+    shape.material.color.setRGB( Math.random() * 100 / 100, Math.random() * 100 / 100, Math.random() * 100 / 100 );
+    shape.castShadow = true;
+    shape.receiveShadow = true;
+
+    shape.position.set(
+      Math.random() * 30 - 15,
+      20,
+      Math.random() * 30 - 15
+    );
+
+    shape.rotation.set(
+      Math.random() * Math.PI,
+      Math.random() * Math.PI,
+      Math.random() * Math.PI
+    );
+
+    scene.add( shape );
+
+    new TWEEN.Tween(shape.material).to({opacity: 1}, 500).start();
+  };
+
+  window.onload = initScene;
+
+  </script>
+</head>
+
+<body>
+  <div>
+    <h1>Chronicle Colony</h1>
+    <p>
+    A view of the contents of a Chronicle instance.
+    </p>
+  </div>
+
+
+  <div id="viewport"></div>
+<script type='text/javascript' id="__bs_script__">//<![CDATA[
+    /* This is for browser-sync.
+       Use it with:
+        browser-sync start --server --files "*"
+    */
+    document.write("<script async src='//HOST:PORT/browser-sync/browser-sync-client.1.7.1.js'><\/script>".replace(/HOST/g, location.hostname).replace(/PORT/g, location.port));
+//]]></script>
+
+</body>
+
+</html>
