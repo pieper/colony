@@ -25,6 +25,14 @@
   var initScene, render, createShape,
     renderer, render_stats, physics_stats, scene, light, ground, ground_material, camera;
 
+  var groundOptions = {
+    width : 50,
+    breadth : 50,
+    depth : 1,
+    mass : 0,
+  };
+
+
   initScene = function() {
     TWEEN.start();
 
@@ -94,12 +102,12 @@
     );
     ground_material.map.wrapS = ground_material.map.wrapT = THREE.RepeatWrapping;
 
+
     // Ground
-    ground = new Physijs.BoxMesh(
-      new THREE.BoxGeometry(50, 1, 50),
-      //new THREE.PlaneGeometry(50, 50),
+    var ground = new Physijs.BoxMesh(
+      new THREE.BoxGeometry(groundOptions.width, groundOptions.depth, groundOptions.breadth),
       ground_material,
-      0 // mass
+      groundOptions.mass
     );
     ground.receiveShadow = true;
     scene.add( ground );
@@ -133,7 +141,7 @@
   };
 
   createShape = function(imageURL) {
-    var box_geometry = new THREE.BoxGeometry( 3, 3, 3 );
+    var box_geometry = new THREE.BoxGeometry( 6, .2, 6 );
 
     THREE.ImageUtils.crossOrigin = '';
     var shape, 
@@ -143,7 +151,8 @@
 
     shape = new Physijs.BoxMesh(
       box_geometry,
-      material
+      material,
+      0.1 // mass
     );
 
     shape.material.color.setRGB( Math.random() * 100 / 100, Math.random() * 100 / 100, Math.random() * 100 / 100 );
@@ -151,9 +160,9 @@
     shape.receiveShadow = true;
 
     shape.position.set(
-      Math.random() * 30 - 15,
+      Math.random() * groundOptions.width - groundOptions.width/2,
       20,
-      Math.random() * 30 - 15
+      Math.random() * groundOptions.width - groundOptions.width/2
     );
 
     shape.rotation.set(
