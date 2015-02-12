@@ -24,8 +24,16 @@
   Physijs.scripts.worker = 'js/physijs_worker.js';
   Physijs.scripts.ammo = 'ammo.js';
 
+  // render and physics related
   var initScene, render, createSeriesBlock, seriesCount = 0,
-    renderer, render_stats, physics_stats, scene, light, ground, ground_material, camera;
+    renderer, render_stats, physics_stats, scene, light, ground, ground_material, camera, videoStream;
+
+  // video related
+  var streaming = false,
+      video,
+      canvas,
+      width = 200,
+      height = 0;
 
   var groundOptions = {
     width : 50,
@@ -34,9 +42,52 @@
     mass : 0,
   };
 
+  var requestVideo = function() {
+
+    video        = document.querySelector('#video'),
+    canvas       = document.querySelector('#canvas'),
+
+    navigator.getUserMedia = ( navigator.getUserMedia ||
+                               navigator.webkitGetUserMedia ||
+                               navigator.mozGetUserMedia ||
+                               navigator.msGetUserMedia );
+
+    navigator.getUserMedia(
+      {
+        video: true,
+        audio: false
+      },
+      function(stream) {
+        videoStream = stream;
+        if (navigator.mozGetUserMedia) {
+          video.mozSrcObject = stream;
+        } else {
+          var vendorURL = window.URL || window.webkitURL;
+          video.src = vendorURL ? vendorURL.createObjectURL(stream) : stream;
+        }
+        video.play();
+      },
+      function(err) {
+        console.log("An error occured! " + err);
+      }
+    );
+
+    video.addEventListener('canplay', function(ev){
+      if (!streaming) {
+        height = video.videoHeight / (video.videoWidth/width);
+        video.setAttribute('width', width);
+        video.setAttribute('height', height);
+        streaming = true;
+      }
+    }, false);
+
+  };
+
 
   initScene = function() {
     TWEEN.start();
+
+    requestVideo();
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize( 0.9 * window.innerWidth, 0.7 * window.innerHeight );
@@ -124,7 +175,7 @@
       endkey: ["0008103E", value+"\u9999"],
       reduce : false,
       stale : 'update_after',
-      //limit : 50,
+      limit : 50,
       success: function(data) {
         $.each(data.rows, function(index,row) {
           var id = row.id;
@@ -134,13 +185,29 @@
       },
     });
 
-  }
+  };
 
 
+  var loading = false;
   render = function() {
-    requestAnimationFrame( render );
+    if (streaming && !loading) {
+      canvas.getContext('2d').drawImage(video, 0, 0, width, height);
+      var url = canvas.toDataURL('image/png');
+      var mapping = THREE.UVMapping;
+      var onLoad = function(texture) {
+        ground_material.map = texture;
+        loading = false;
+      };
+      var onError = function(event) {
+        console.log(event);
+        loading = false;
+      };
+      THREE.ImageUtils.loadTexture(url, mapping, onLoad, onError);
+      loading = true;
+    }
     renderer.render( scene, camera );
     render_stats.update();
+    requestAnimationFrame( render );
   };
 
   createSeriesBlock = function(imageURL) {
@@ -202,6 +269,26 @@
 
   <div id="viewport"></div>
 
+  <video autoplay id="video"></video>
+  <canvas id="canvas"></canvas>
+
+  <span id="orientation"></span>
+
+  <script>
+    
+        var b = document.getElementById('orientation');
+        b.innerHTML = "<p> listening for orientation events...</p>";
+    
+        window.addEventListener('deviceorientation', function(e) {
+                /* e.alpha, beta: e.beta, gamma: e.gamma */
+                var b = document.getElementById('example');
+                b.innerHTML = "<p> e = " + e + "</p>";
+                b.innerHTML += "<p> alpha = " + e.alpha + "</p>";
+                b.innerHTML += "<p> beta = " + e.beta + "</p>";
+                b.innerHTML += "<p> gamma = " + e.gamma + "</p>";
+                b.innerHTML += "<p> absolute = " + e.absolute + "</p>";
+        }, true);
+  </script>
 
   <script type='text/javascript' id="__bs_script__">//<![CDATA[
       /* This is for browser-sync.  Use it with:
