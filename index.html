@@ -175,7 +175,7 @@
       endkey: ["0008103E", value+"\u9999"],
       reduce : false,
       stale : 'update_after',
-      limit : 50,
+      limit : 5,
       success: function(data) {
         $.each(data.rows, function(index,row) {
           var id = row.id;
@@ -281,7 +281,7 @@
     
         window.addEventListener('deviceorientation', function(e) {
                 /* e.alpha, beta: e.beta, gamma: e.gamma */
-                var b = document.getElementById('example');
+                var b = document.getElementById('orientation');
                 b.innerHTML = "<p> e = " + e + "</p>";
                 b.innerHTML += "<p> alpha = " + e.alpha + "</p>";
                 b.innerHTML += "<p> beta = " + e.beta + "</p>";
